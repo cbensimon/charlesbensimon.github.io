@@ -378,7 +378,10 @@ setTimeout(function checkImages() {
 		//collMap.setPosition(0, 0, 0);
 
 		var timerPhysics		= setInterval(function(){nextState(voiture, keyboard)},	1000/STEPS);
-		var timerGraphics	= setInterval(function(){renderParking(voiture)},		20);
+		var timerGraphics	= requestAnimationFrame(function render(){
+			renderParking(voiture);
+			requestAnimationFrame(render);
+		});
 
 		document.addEventListener('keydown', function(e){majKeyboardDown(e, keyboard, pressed);}, false);
 		document.addEventListener('keyup', function(e){majKeyboardUp(e, keyboard, pressed);}, false);
