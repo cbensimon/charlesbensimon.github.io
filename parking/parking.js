@@ -9,11 +9,11 @@ ACCELERATEUR_TIME	= 0.6 //0.4
 FREIN_FINAL			= 80
 FREIN_TIME			= 0.4
 
-STEPS				= 100
+//STEPS				= 100
 COEF_FROTEMENTS		= 7 //8
 V_MA					= 0.01
 V_NULL				= 0.04
-RENDER_STEPS			= 3
+//RENDER_STEPS			= 3
 ZOOM					= 20
 
 KEY_DOWN				= 40;
@@ -104,17 +104,17 @@ function majKeyboardUp(e, keyboard, pressed)
 	}
 }
 
-function majCommandes (commandes, keyboard)
+function majCommandes (commandes, keyboard, dt)
 {
 	var marcheAvant = (commandes.vitesse == 1)?1:0;
 	if ((keyboard.up && marcheAvant) || (keyboard.down && !marcheAvant)) {
-		modifCommande(commandes.accelerateur);
+		modifCommande(commandes.accelerateur, dt);
 	} else {
 		commandes.accelerateur.value = 0;
 	}
 	
 	if ((keyboard.down && marcheAvant) || (keyboard.up && !marcheAvant)) {
-		modifCommande(commandes.frein);
+		modifCommande(commandes.frein, dt);
 	} else {
 		commandes.frein.value = 0;
 	}
@@ -122,18 +122,18 @@ function majCommandes (commandes, keyboard)
 	if (keyboard.left)
 	{
 		commandes.volant.sens = 1;
-		modifCommande(commandes.volant);
+		modifCommande(commandes.volant, dt);
 	}
 	if (keyboard.right)
 	{
 		commandes.volant.sens = -1;
-		modifCommande(commandes.volant);
+		modifCommande(commandes.volant, dt);
 	}
 }
 
-function modifCommande(commande)
+function modifCommande(commande, dt)
 {
-	commande.value += commande.sens*(commande.finalValue - commande.initialValue)/(STEPS*commande.time);
+	commande.value += commande.sens*(commande.finalValue - commande.initialValue)*(dt/commande.time);
 	if (commande.finalValue >= commande.initialValue)
 	{
 		if (commande.value > commande.finalValue)
@@ -236,14 +236,14 @@ function clone(obj) {
     return copy;
 }
 
-function nextState(voiture, keyboard)
+function nextState(voiture, keyboard, dt)
 {
-	CPU++;
-	if (CPU%STEPS == 0)
-	{
-		console.log('Tic');
-		CPU=0;
-	}
+	// CPU++;
+	// if (CPU%STEPS == 0)
+	// {
+	// 	console.log('Tic');
+	// 	CPU=0;
+	// }
 	
 	var voiture_copy = new Voiture(parseFloat(voiture.ax), parseFloat(voiture.ay), parseFloat(voiture.fax), parseFloat(voiture.fay), parseFloat(voiture.vax), parseFloat(voiture.vay), parseFloat(voiture.bx), parseFloat(voiture.by), parseFloat(voiture.longueur), voiture.commandes);
 	
@@ -259,16 +259,16 @@ function nextState(voiture, keyboard)
         	voiture_copy.commandes.vitesse = 1;
         }
     }
-	majCommandes(voiture_copy.commandes, keyboard);
+	majCommandes(voiture_copy.commandes, keyboard, dt);
 	
 	majVitesseVolant(voiture_copy);
 	
 	majForce(voiture_copy);
 	
-	voiture_copy.ax += (voiture_copy.vax + (voiture_copy.fax/STEPS)/2)/STEPS;
-	voiture_copy.ay += (voiture_copy.vay + (voiture_copy.fay/STEPS)/2)/STEPS;
-    voiture_copy.vax += voiture_copy.fax/STEPS;
-    voiture_copy.vay += voiture_copy.fay/STEPS;
+	voiture_copy.ax += (voiture_copy.vax + (voiture_copy.fax*dt)/2)*dt;
+	voiture_copy.ay += (voiture_copy.vay + (voiture_copy.fay*dt)/2)*dt;
+    voiture_copy.vax += voiture_copy.fax*dt;
+    voiture_copy.vay += voiture_copy.fay*dt;
     
     var voiture_copy_ux, voiture_copy_uy;
 	var norme;
@@ -293,8 +293,8 @@ function nextState(voiture, keyboard)
     } else {
     	alpha = Math.atan(directionX/directionY) + Math.PI;
     }
-	//collCar.setPosition(carX, carY, (-1)*(alpha + (Math.PI/2)));
-	if (true)//!(collCar.isCollisionWith(collMap)))
+	collCar.setPosition(carX, carY, (-1)*(alpha + (Math.PI/2)));
+	if (!(collCar.isCollisionWith(collMap)))
 	{
 		voiture.ax = voiture_copy.ax;
 		voiture.ay = voiture_copy.ay;
@@ -373,14 +373,18 @@ setTimeout(function checkImages() {
 		setTimeout(checkImages, 100)
 	} else {
 
-		//collCar = new CollisionDetector(document.getElementById('car_image'));
-		//collMap = new CollisionDetector(document.getElementById('collMap_image'));
-		//collMap.setPosition(0, 0, 0);
+		collCar = new CollisionDetector(document.getElementById('car_image'));
+		collMap = new CollisionDetector(document.getElementById('collMap_image'));
+		collMap.setPosition(0, 0, 0);
 
-		var timerPhysics		= setInterval(function(){nextState(voiture, keyboard)},	1000/STEPS);
-		var timerGraphics	= requestAnimationFrame(function render(){
+		var t0
+
+		requestAnimationFrame(function mainLoop(t1){
+			var dt = t0 ? (t1 - t0)/1000 : 0
+			t0 = t1
+			nextState(voiture, keyboard, dt)
 			renderParking(voiture);
-			requestAnimationFrame(render);
+			requestAnimationFrame(mainLoop);
 		});
 
 		document.addEventListener('keydown', function(e){majKeyboardDown(e, keyboard, pressed);}, false);
